@@ -20,9 +20,10 @@ pipx install git+https://github.com/hamarshehmhmd/sshleash
 user (an AI agent, say), can log in anywhere your keys can for as long as you're connected. More and more tools set
 this up for you:
 
-- **ChatGPT Desktop / Codex** forwards your SSH agent to remote machines, so *"the agent running on a remote machine can
-  authenticate using your local SSH credentials ... it can push to your private repos on GitHub"*
-  ([Hacker News, Nov 2026](https://news.ycombinator.com/item?id=50422628), [openai/codex#28131](https://github.com/openai/codex/pull/28131)).
+- **ChatGPT Desktop / Codex** remote sessions can forward your SSH agent, so *"the agent running on a remote machine
+  can authenticate using your local SSH credentials ... it can push to your private repos on GitHub"*
+  ([Hacker News, Nov 2026](https://news.ycombinator.com/item?id=50422628); see the opt-in `--forward-ssh-agent` proxy
+  mode in [openai/codex#28131](https://github.com/openai/codex/pull/28131)).
 - **Docker sandboxes (`sbx`)** forwarded the host's agent into the sandbox: an agent with its own GitHub identity
   happily cloned a private repo as its owner ([The SSH Security Hole in Docker Sandboxes](https://rupertrutledge.com/posts/docker-sbx-s-ssh-security-issue/)).
 - **DevPod and friends** write `ForwardAgent yes` blocks straight into `~/.ssh/config` (same HN thread).
@@ -34,7 +35,8 @@ OpenSSH has had the data to make that decision since 8.9: before using the agent
 [`session-bind@openssh.com`](https://www.openssh.com/agent-restrict.html) message with the destination's host key and
 a flag saying whether the connection is a forwarded one. The stock agent only uses it for keys added with
 `ssh-add -h` destination constraints, which few people set up and which most third-party agents don't support. sshleash
-uses it to filter every request, in front of any agent: OpenSSH, 1Password, Bitwarden, gpg-agent, a YubiKey.
+uses it to filter every request. It speaks the standard agent protocol, so it can sit in front of other agents
+(1Password, Bitwarden, gpg-agent); CI tests it against OpenSSH's `ssh-agent`.
 
 ## What it does
 
@@ -131,6 +133,8 @@ CI runs that same scenario on every push ([`tests/test_e2e_sshd.py`](tests/test_
   and tools that pass your socket around without ssh, show up as `forwarded = false`. Match them by `process` instead.
 - The destination is known when the remote ssh is 8.9+ (session-bind or host-bound auth). Otherwise it is `unknown`,
   and you can write rules for `host = ["unknown"]`.
+- Tested against OpenSSH's `ssh-agent`. Agents that don't implement `session-bind@openssh.com` still work, but
+  binds sent from a remote machine can't be verified, so those destinations show up as `unknown`.
 - Linux and macOS. Requesting-program detection uses `SO_PEERCRED` / `LOCAL_PEERPID`.
 - sshleash doesn't hold keys. Anything that can read your real agent socket can still skip it. Keep the real socket
   out of untrusted environments, and use hardware keys for the keys that matter.

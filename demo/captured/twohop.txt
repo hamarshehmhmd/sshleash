@@ -1,0 +1,32 @@
+$ grep -A1 'Host devbox' ~/.ssh/config | tail -2
+Host devbox
+  ForwardAgent ~/.ssh/sshleash.sock
+
+$ cat ~/.config/sshleash/policy.toml | grep -E '^(name|key|via|forwarded|host|action)'
+name = "devbox never sees the deploy key"
+key = "deploy-bot"
+via = ["devbox"]
+action = "deny"
+name = "laptop key: no logins from devbox onwards"
+key = "laptop-key"
+forwarded = true
+host = ["gitserver"]
+action = "deny"
+action = "allow"
+
+$ ssh devbox 'echo on $(hostname -s)-as-devbox; ssh-add -l'
+on runnervmccnms-as-devbox
+256 SHA256:/oo5bVTZ0e0Lv8hBcOPxxoVc70IZVgVu12tdKyEl71Y laptop-key (ED25519)
+
+$ ssh devbox 'ssh gitserver echo hello from gitserver'
+sign_and_send_pubkey: signing failed for ED25519 "laptop-key" from agent: agent refused operation
+no such identity: /nonexistent: No such file or directory
+runner@127.0.0.1: Permission denied (publickey,keyboard-interactive).
+
+$ sshleash log -n 6
+13:36:02 ALLOW   login runner@devbox with laptop-key ED25519 SHA256:/oo5bVTZ0e0Lv8hBcOPxxoVc70IZVgVu12tdKyEl71Y  by ssh < bash < bash < Runner.Worker (pid 2353)  [default]
+13:36:02 ALLOW   list keys: showed 1, hid 1  via forwarded agent on devbox  by ssh < bash < bash < Runner.Worker (pid 2353)
+13:36:02 ALLOW   login runner@devbox with laptop-key ED25519 SHA256:/oo5bVTZ0e0Lv8hBcOPxxoVc70IZVgVu12tdKyEl71Y  by ssh < bash < bash < Runner.Worker (pid 2359)  [default]
+13:36:02 ALLOW   list keys: showed 1, hid 1  via forwarded agent on devbox  by ssh < bash < bash < Runner.Worker (pid 2359)
+13:36:02 DENY    login runner@gitserver with laptop-key ED25519 SHA256:/oo5bVTZ0e0Lv8hBcOPxxoVc70IZVgVu12tdKyEl71Y  via forwarded agent on devbox  by ssh < bash < bash < Runner.Worker (pid 2359)  [laptop key: no logins from devbox onwards]
+

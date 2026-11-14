@@ -21,6 +21,12 @@ C = {"high": "\033[31m", "medium": "\033[33m", "low": "\033[36m", "info": "\033[
      "bold": "\033[1m", "green": "\033[32m"}
 
 
+def _use_color(json_out=False) -> bool:
+    if json_out or os.environ.get("NO_COLOR"):
+        return False
+    return sys.stdout.isatty() or bool(os.environ.get("FORCE_COLOR"))
+
+
 def _c(name, text, on):
     return f"{C[name]}{text}{C['end']}" if on else text
 
@@ -95,7 +101,7 @@ def cmd_run(a) -> int:
 
 
 def cmd_audit(a) -> int:
-    color = sys.stdout.isatty() and not a.json and not os.environ.get("NO_COLOR")
+    color = _use_color(a.json)
     configs = a.config or SSH_CONFIGS
     res = audit_mod.run(configs, dict(os.environ), a.socket, processes=not a.no_processes)
     if a.json:
@@ -134,7 +140,9 @@ def cmd_explain(a) -> int:
                   namespace=a.namespace or "")
     action, rule = policy.decide(ctx)
     visible, vrule = policy.visible(ctx)
-    print(f"{action.upper()}  (rule: {rule})")
+    color = _use_color()
+    label = {"allow": "green", "deny": "high", "confirm": "medium"}[action]
+    print(f"{_c(label, action.upper(), color)}  (rule: {rule})")
     if not visible:
         print(f"key hidden from this connection (rule: {vrule})")
     print(f"policy: {policy.path}")
@@ -152,8 +160,16 @@ def cmd_log(a) -> int:
     events = [json.loads(x) for x in lines if x.strip()]
     if a.deny:
         events = [e for e in events if e.get("decision") == "deny"]
+    color = _use_color(a.json)
     for e in events[-a.n:]:
-        print(json.dumps(e) if a.json else format_event(e))
+        if a.json:
+            print(json.dumps(e))
+            continue
+        line = format_event(e)
+        if color:
+            line = line.replace(" DENY ", " " + _c("high", "DENY", True) + " ", 1)
+            line = line.replace(" ALLOW ", " " + _c("green", "ALLOW", True) + " ", 1)
+        print(line)
     return 0
 
 
