@@ -1,0 +1,48 @@
+# Example sshleash policy (copy to ~/.config/sshleash/policy.toml).
+[settings]
+confirm = "auto"
+confirm_timeout = 30
+remember = 300
+
+[[rule]]
+name = "the deploy key never leaves this laptop"
+key = "deploy-*"
+forwarded = true
+action = "deny"
+
+[[rule]]
+name = "forwarded agents: GitHub only, and ask"
+forwarded = true
+host = ["github.com"]
+action = "confirm"
+
+[[rule]]
+name = "forwarded agents: nothing else"
+forwarded = true
+action = "deny"
+
+[[rule]]
+name = "AI agents and sandboxes: work key on GitHub only"
+process = ["codex*", "claude*", "cursor*", "sbx", "com.docker.*"]
+key = "work*"
+host = ["github.com"]
+action = "allow"
+
+[[rule]]
+name = "AI agents and sandboxes: everything else asks"
+process = ["codex*", "claude*", "cursor*", "sbx", "com.docker.*"]
+action = "confirm"
+
+[[rule]]
+name = "commit signing only in the git namespace"
+kind = ["sshsig"]
+namespace = ["git"]
+action = "allow"
+
+[[rule]]
+name = "other SSHSIG signatures ask"
+kind = ["sshsig"]
+action = "confirm"
+
+[default]
+action = "allow"

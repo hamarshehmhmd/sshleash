@@ -1,0 +1,69 @@
+name: CI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: tests (python ${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+      - run: python -m pip install . pytest
+      - run: python -m pytest -q
+      - run: sshleash --version
+
+  e2e:
+    name: end-to-end with real sshd (laptop -> devbox -> gitserver)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: install openssh-server (binary only, no system service is used)
+        run: |
+          command -v sshd || ls /usr/sbin/sshd || (sudo apt-get update -q && sudo apt-get install -y -q openssh-server)
+          ssh -V
+      - run: python -m pip install . pytest
+      - name: e2e tests
+        run: SSHLEASH_E2E=1 python -m pytest -v tests/test_e2e_sshd.py
+      - name: two-hop transcript (used in the demo video)
+        run: |
+          ./demo/twohop.sh | tee twohop.txt
+          grep -q "Permission denied" twohop.txt
+          grep -q "DENY" twohop.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: twohop-transcript
+          path: twohop.txt
+
+  install:
+    name: one-line install from GitHub
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: pipx install "git+https://github.com/${{ github.repository }}@${{ github.sha }}"
+      - run: sshleash --version && sshleash audit --no-processes --fail-on never

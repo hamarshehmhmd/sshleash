@@ -1,0 +1,18 @@
+# A typical ~/.ssh/config after a year of tools "helpfully" editing it.
+
+Host devbox
+  HostName devbox.internal
+  ForwardAgent yes
+
+Host *.lab
+  ForwardAgent yes
+
+# DevPod Start myws.devpod
+Host myws.devpod
+  ForwardAgent yes
+  User vscode
+  ProxyCommand devpod ssh --stdio myws
+# DevPod End
+
+Host github.com
+  User git

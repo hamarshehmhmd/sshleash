@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sshleash"
+version = "0.1.0"
+description = "An SSH agent firewall: forwarded agents, sandboxes and AI tools only get the keys and hosts your policy allows, with a prompt and a log for every signature."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Mohammad Hamarsheh" }]
+keywords = ["ssh", "ssh-agent", "agent-forwarding", "security", "ai-agents", "sandbox", "git", "openssh"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Environment :: Console",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Topic :: Security",
+  "Topic :: System :: Systems Administration",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/hamarshehmhmd/sshleash"
+Issues = "https://github.com/hamarshehmhmd/sshleash/issues"
+
+[project.scripts]
+sshleash = "sshleash.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
